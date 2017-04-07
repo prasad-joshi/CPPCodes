@@ -35,21 +35,23 @@ int main() {
 		assert(result == IO_SIZE);
 	});
 
-#if 0
-	/* third write --- enabling this nested write results in segment fault */
-	IO io3(fd, IO_SIZE, 1024, IOType::WRITE);
-	auto f = asyncio.ioSubmit(io3);
-	f.then([&io3, &asyncio, &base, &fd] (ssize_t result) {
+	/* third write */
+	IO io3(fd, IO_SIZE, 0, IOType::WRITE);
+	std::memset(io3.getIOBuffer(), 'C', IO_SIZE);
+	auto f  = asyncio.ioSubmit(io3);
+	auto f1 = f.then([&io3] (ssize_t result) {
 		assert(result == IO_SIZE);
+	});
 
-		IO io4(fd, IO_SIZE, 2048, IOType::WRITE);
+	IO io4(fd, IO_SIZE, 0, IOType::WRITE);
+	std::memset(io4.getIOBuffer(), 'D', IO_SIZE);
+	f1.then([&io4, &base, &asyncio] {
 		auto f = asyncio.ioSubmit(io4);
-		f.then([&] (ssize_t result) {
+		f.then([&io4, &base] (ssize_t result) {
 			assert(result == IO_SIZE);
 			base.terminateLoopSoon();
 		});
 	});
-#endif
 
 	base.loopForever();
 
