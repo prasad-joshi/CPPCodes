@@ -15,7 +15,6 @@ using std::unique_ptr;
 using std::vector;
 using std::make_unique;
 
-
 IO::IO(int fd, size_t size, uint64_t offset, IOType type) :
 		fd_(fd), size_(size), offset_(offset), type_(type), bufp_(allocBuffer(size)) {
 	prepare();
@@ -47,12 +46,21 @@ struct iocb *IO::getIOCB() {
 	return &iocb_;
 }
 
-void IO::setComplete(ssize_t result) {
+void IO::setResult(ssize_t result) {
 	assert(p_.isFulfilled() == false);
-	p_.setValue(result);
+	this->result_ = result;
 }
 
-Future<ssize_t> IO::getFuture() {
+ssize_t IO::getResult() const {
+	return result_;
+}
+
+void IO::completePromise(unique_ptr<IO> iop) {
+	assert(p_.isFulfilled() == false && this == iop.get());
+	p_.setValue(std::move(iop));
+}
+
+Future<unique_ptr<IO>> IO::getFuture() {
 	return p_.getFuture();
 }
 
@@ -76,17 +84,21 @@ void AsyncIO::init(EventBase *basep) {
 	handlerp_->registerHandler(EventHandler::READ | EventHandler::PERSIST);
 }
 
-Future<ssize_t> AsyncIO::ioSubmit(IO &io) {
+Future<unique_ptr<IO>> AsyncIO::ioSubmit(unique_ptr<IO> io) {
+	IO *iop = io.get();
+	inflight_.push_back(std::move(io));
+
 	struct iocb *iocb[1];
-	auto iocbp  = io.getIOCB();
-	iocbp->data = reinterpret_cast<void *>(&io);
+	auto iocbp  = iop->getIOCB();
+	iocbp->data = reinterpret_cast<void *>(iop);
 	iocb[0]     =  iocbp;
 	io_set_eventfd(iocbp, eventfd_);
 	io_submit(context_, 1, iocb);
-	return io.getFuture();
+	return iop->getFuture();
 }
 
-vector<Future<ssize_t>> AsyncIO::iosSubmit(vector<IO> &ios) {
+#if 0
+vector<Future<ssize_t>> AsyncIO::iosSubmit(vector<unique_ptr<IO>> &ios) {
 	vector<Future<ssize_t>> v;
 
 	size_t nios = ios.size();
@@ -104,6 +116,7 @@ vector<Future<ssize_t>> AsyncIO::iosSubmit(vector<IO> &ios) {
 
 	return v;
 }
+#endif
 
 ssize_t ioResult(struct io_event *ep) {
 	return ((ssize_t)(((uint64_t)ep->res2 << 32) | ep->res));
@@ -131,7 +144,22 @@ void AsyncIO::iosCompleted() {
 		for (auto ep = events; ep < events + nevents; ep++) {
 			auto *iop   = reinterpret_cast<IO*>(ep->data);
 			auto result = ioResult(ep);
-			iop->setComplete(result);
+			auto it = find_if(inflight_.begin(), inflight_.end(), [iop] (const unique_ptr<IO> &t) {
+				return t.get() == iop;
+			});
+
+			unique_ptr<IO> ioup;
+			if (it != inflight_.end()) {
+				if (inflight_.size() >= 2) {
+					std::swap(*it, inflight_.back());
+				}
+				ioup = std::move(inflight_.back());
+				inflight_.pop_back();
+			}
+
+			assert(ioup.get() == iop);
+			iop->setResult(result);
+			iop->completePromise(std::move(ioup));
 		}
 	}
 }

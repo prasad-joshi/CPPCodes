@@ -21,34 +21,34 @@ int main() {
 	assert(fd > 0);
 
 	/* first write */
-	IO io(fd, IO_SIZE, 0, IOType::WRITE);
-	char *b = io.getIOBuffer();
+	auto io1 = make_unique<IO>(fd, IO_SIZE, 0, IOType::WRITE);
+	char *b = io1->getIOBuffer();
 	std::memset(b, 'A', IO_SIZE);
-	asyncio.ioSubmit(io).then([&io] (ssize_t result) {
-		assert(result == IO_SIZE);
+	asyncio.ioSubmit(std::move(io1)).then([ ] (unique_ptr<IO> io1) {
+		assert(io1->getResult() == IO_SIZE);
 	});
 
 	/* second write */
-	IO io2(fd, IO_SIZE, 512, IOType::WRITE);
-	std::memset(io2.getIOBuffer(), 'B', IO_SIZE);
-	asyncio.ioSubmit(io2).then([&io2, &base] (ssize_t result) {
-		assert(result == IO_SIZE);
+	auto io2 = make_unique<IO>(fd, IO_SIZE, 512, IOType::WRITE);
+	std::memset(io2->getIOBuffer(), 'B', IO_SIZE);
+	asyncio.ioSubmit(std::move(io2)).then([] (unique_ptr<IO> io2) {
+		assert(io2->getResult() == IO_SIZE);
 	});
 
 	/* third write */
-	IO io3(fd, IO_SIZE, 0, IOType::WRITE);
-	std::memset(io3.getIOBuffer(), 'C', IO_SIZE);
-	auto f  = asyncio.ioSubmit(io3);
-	auto f1 = f.then([&io3] (ssize_t result) {
-		assert(result == IO_SIZE);
+	auto io3 = make_unique<IO>(fd, IO_SIZE, 1024, IOType::WRITE);
+	std::memset(io3->getIOBuffer(), 'C', IO_SIZE);
+	auto f  = asyncio.ioSubmit(std::move(io3));
+	auto f1 = f.then([] (unique_ptr<IO> io3) {
+		assert(io3->getResult() == IO_SIZE);
 	});
 
-	IO io4(fd, IO_SIZE, 0, IOType::WRITE);
-	std::memset(io4.getIOBuffer(), 'D', IO_SIZE);
-	f1.then([&io4, &base, &asyncio] {
-		auto f = asyncio.ioSubmit(io4);
-		f.then([&io4, &base] (ssize_t result) {
-			assert(result == IO_SIZE);
+	f1.then([&base, &asyncio, &fd] {
+		auto io4 = make_unique<IO>(fd, IO_SIZE, 0, IOType::WRITE);
+		std::memset(io4->getIOBuffer(), 'D', IO_SIZE);
+		auto f = asyncio.ioSubmit(std::move(io4));
+		f.then([&base] (unique_ptr<IO> io4) {
+			assert(io4->getResult() == IO_SIZE);
 			base.terminateLoopSoon();
 		});
 	});

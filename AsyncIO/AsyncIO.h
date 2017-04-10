@@ -9,6 +9,8 @@
 #define PAGE_SIZE 4096
 
 using namespace folly;
+using std::unique_ptr;
+using std::vector;
 
 using ManagedBuffer = std::unique_ptr<char, void(*)(void*)>;
 
@@ -27,7 +29,7 @@ private:
 	IOType        type_;
 	struct iocb   iocb_;
 
-	Promise<ssize_t> p_;
+	Promise<unique_ptr<IO>> p_;
 private:
 	void prepare();
 	ManagedBuffer allocBuffer(size_t size);
@@ -36,15 +38,18 @@ public:
 	IO(int fd, size_t size, uint64_t offset, IOType type);
 	char *getIOBuffer();
 	struct iocb *getIOCB();
-	Future<ssize_t> getFuture();
-	void setComplete(ssize_t result);
+	Future<unique_ptr<IO>> getFuture();
+	void setResult(ssize_t result);
+	ssize_t getResult() const;
+	void completePromise(unique_ptr<IO> iop);
 };
 
 class AsyncIO {
 private:
-	io_context_t   context_;
-	uint16_t       capacity_;
-	int            eventfd_;
+	io_context_t    context_;
+	uint16_t        capacity_;
+	int             eventfd_;
+	std::vector<std::unique_ptr<IO>> inflight_;
 public:
 	class EventFDHandler : public EventHandler {
 	private:
@@ -72,8 +77,8 @@ public:
 
 	void iosCompleted();
 
-	Future<ssize_t> ioSubmit(IO &io);
-	std::vector<Future<ssize_t>> iosSubmit(std::vector<IO> &ios);
+	Future<unique_ptr<IO>> ioSubmit(unique_ptr<IO> io);
+	//std::vector<Future<unique_ptr<IO>>> iosSubmit(std::vector<unique_ptr<IO>> &ios);
 
 private:
 	std::unique_ptr<EventFDHandler> handlerp_;
