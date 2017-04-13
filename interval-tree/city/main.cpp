@@ -181,7 +181,7 @@ void serialize(const ranges &tree) {
 	cout << "================================= \n";	
 
 	std::ofstream wf{"/tmp/interval.dat"};
-	boost::archive::text_oarchive oa(wf);
+	boost::archive::xml_oarchive oa(wf);
 
 	oa << tree;
 	wf.flush();
@@ -189,7 +189,7 @@ void serialize(const ranges &tree) {
 
 	cout << "\n===== Deserialized tree : ======= \n";
 	std::ifstream rf{"/tmp/interval.dat"};
-	boost::archive::text_iarchive ia(rf);
+	boost::archive::xml_iarchive ia(rf);
 	ranges t2;
 	ia >> t2;
 	display(t2);
