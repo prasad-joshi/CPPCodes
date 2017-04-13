@@ -98,7 +98,7 @@ void serialize(const ranges &tree) {
 	std::ofstream wf{"/tmp/interval.dat"};
 	boost::archive::xml_oarchive oa(wf);
 
-	oa << tree;
+	oa << BOOST_SERIALIZATION_NVP(tree);
 	wf.flush();
 	wf.close();
 }
