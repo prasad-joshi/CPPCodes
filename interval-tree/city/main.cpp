@@ -26,19 +26,14 @@ private:
 	uint64_t low_;  /* low temperature on perticular day */
 	uint64_t high_; /* high temperature on perticular day */
 public:
-	City() : City("", 0, 0) {
-
-	}
+	City() : City("", 0, 0) { }
 
 	City(string city, uint64_t low, uint64_t high) :
-			city_(city), low_(low), high_(high) {
-
-	}
+			city_(city), low_(low), high_(high) { }
 
 	bool operator== (const City &rhs) const {
 		return (low_ == rhs.low_ && high_ == rhs.high_ && city_ == rhs.city_);
 	}
-
 
 	bool operator< (const City &rhs) const {
 		return low_ <= rhs.low_;
@@ -59,7 +54,7 @@ typedef boost::icl::interval_map<uint64_t, TempSet> ranges;
 
 namespace boost { namespace serialization {
 	/*
-     * Value in interval_map is boost flat_set -- serialize each element in flat_set
+	 * Value in interval_map is boost flat_set -- serialize each element in flat_set
 	 */
 	template<typename Archive, typename Key, typename Compare, typename Allocator>
 	void save(Archive & ar,
@@ -95,7 +90,7 @@ namespace boost { namespace serialization {
 	}
 
 	/*
-     * Key in interval_map is discrete_interval -- serialize it.
+	 * Key in interval_map is discrete_interval -- serialize it.
 	 */
 
 	template <typename Archive, typename K>
@@ -127,7 +122,7 @@ namespace boost { namespace serialization {
 	}
 
 	/*
-     * Serialize interval_map
+	 * Serialize interval_map
 	 */
 	template <typename Archive, typename K, typename V>
 	void save(Archive& ar, boost::icl::interval_map<K, V> const& im, unsigned) {
