@@ -24,12 +24,13 @@ using namespace boost::icl;
 using std::cout;
 using std::endl;
 
-typedef boost::container::flat_set<City>  TempSet;
-typedef boost::icl::interval_map<uint64_t, TempSet> ranges;
 
-void Query(const ranges &tree) {
+typedef boost::container::flat_set<City>  CitySet;
+typedef boost::icl::interval_map<uint64_t, CitySet> Index;
+
+void Query(const Index &index) {
 	auto window  = interval<uint64_t>::right_open(15, 26);
-	auto matched = tree & window;
+	auto matched = index & window;
 
 	cout << "Result " << endl;
 	for (const auto &e : matched) {
@@ -44,21 +45,21 @@ void Query(const ranges &tree) {
 	}
 }
 
-void display(const ranges &tree) {
-	cout << tree << endl;
+void display(const Index &index) {
+	cout << index << endl;
 }
 
-void remove_city(ranges &tree, const City &city) {
+void remove_city(Index &index, const City &city) {
 	auto w = interval<uint64_t>::right_open(city.getLowTemperature(), city.getHighTemperature());
 
-	auto l = tree.lower_bound(w);
-	if (l == tree.end()) {
+	auto l = index.lower_bound(w);
+	if (l == index.end()) {
 		return;
 	}
 
 	std::vector<discrete_interval<uint64_t>> empty;
 
-	auto u = tree.upper_bound(w);
+	auto u = index.upper_bound(w);
 	for (auto it = l; it != u; it++) {
 		for (auto sit = it->second.begin(); sit != it->second.end(); sit++) {
 			if (*sit == city) {
@@ -72,7 +73,7 @@ void remove_city(ranges &tree, const City &city) {
 	}
 
 	for (const auto &e : empty) {
-		tree.erase(e);
+		index.erase(e);
 	}
 }
 
@@ -175,90 +176,90 @@ namespace boost { namespace serialization {
 }
 }
 
-void serialize(const ranges &tree) {
-	cout << "\n===== Current tree : ======= \n";
-	display(tree);
+void serialize(const Index &index) {
+	cout << "\n===== Current index : ======= \n";
+	display(index);
 	cout << "================================= \n";	
 
 	std::ofstream wf{"/tmp/interval.dat"};
 	boost::archive::text_oarchive oa(wf);
 
-	oa << tree;
+	oa << BOOST_SERIALIZATION_NVP(index);
 	wf.flush();
 	wf.close();
 
-	cout << "\n===== Deserialized tree : ======= \n";
+	cout << "\n===== Deserialized index : ======= \n";
 	std::ifstream rf{"/tmp/interval.dat"};
 	boost::archive::text_iarchive ia(rf);
-	ranges t2;
-	ia >> t2;
+	Index t2;
+	ia >> BOOST_SERIALIZATION_NVP(t2);
 	display(t2);
 	cout << "================================= \n";
 }
 
 int main() {
-	ranges tree;
+	Index temp_index;
 
 	City cpur{"cpur", 28, 39};
-	TempSet cset{cpur};
+	CitySet cset{cpur};
 	auto crange = interval<uint64_t>::right_open(cpur.getLowTemperature(), cpur.getHighTemperature());
-	tree.add(std::make_pair(crange, cset));
+	temp_index.add(std::make_pair(crange, cset));
 
 	City pune{"pune", 10, 30};
-	TempSet pset{pune};
+	CitySet pset{pune};
 	auto prange = interval<uint64_t>::right_open(pune.getLowTemperature(), pune.getHighTemperature());
 	auto ppair  = std::make_pair(prange, pset);
-	tree.add(ppair);
+	temp_index.add(ppair);
 
 	City kpur{"kpur", 11, 31};
-	TempSet kset{kpur};
+	CitySet kset{kpur};
 	auto krange = interval<uint64_t>::right_open(kpur.getLowTemperature(), kpur.getHighTemperature());
-	tree.add(std::make_pair(krange, kset));
+	temp_index.add(std::make_pair(krange, kset));
 
 	City npur{"npur", 25, 42};
-	TempSet nset{npur};
+	CitySet nset{npur};
 	auto nrange = interval<uint64_t>::right_open(npur.getLowTemperature(), npur.getHighTemperature());
-	tree.add(std::make_pair(nrange, nset));
+	temp_index.add(std::make_pair(nrange, nset));
 
 	City xpur{"xpur", 35, 45};
-	TempSet xset{xpur};
+	CitySet xset{xpur};
 	auto xrange = interval<uint64_t>::right_open(xpur.getLowTemperature(), xpur.getHighTemperature());
-	tree.add(std::make_pair(xrange, xset));
+	temp_index.add(std::make_pair(xrange, xset));
 
 	City tpur{"tpur", 25, 51};
-	TempSet tset{tpur};
+	CitySet tset{tpur};
 	auto trange = interval<uint64_t>::right_open(tpur.getLowTemperature(), tpur.getHighTemperature());
-	tree.add(std::make_pair(trange, tset));
+	temp_index.add(std::make_pair(trange, tset));
 
-	serialize(tree);
+	serialize(temp_index);
 
 	cout << "Before removal.\n";
-	display(tree);
+	display(temp_index);
 
-	remove_city(tree, tpur);
+	remove_city(temp_index, tpur);
 	cout << "After removal tpur " << endl;
-	display(tree);
+	display(temp_index);
 
-	remove_city(tree, xpur);
+	remove_city(temp_index, xpur);
 	cout << "After removal xpur " << endl;
-	display(tree);
+	display(temp_index);
 
-	tree.add(std::make_pair(xrange, xset));
+	temp_index.add(std::make_pair(xrange, xset));
 	cout << "After adding xpur " << endl;
-	display(tree);
+	display(temp_index);
 
-	tree.add(std::make_pair(trange, tset));
+	temp_index.add(std::make_pair(trange, tset));
 	cout << "After adding tpur " << endl;
-	display(tree);
+	display(temp_index);
 
-	remove_city(tree, xpur);
+	remove_city(temp_index, xpur);
 	cout << "After removal xpur " << endl;
-	display(tree);
+	display(temp_index);
 
-	remove_city(tree, tpur);
+	remove_city(temp_index, tpur);
 	cout << "After removal tpur " << endl;
-	display(tree);
+	display(temp_index);
 
-	serialize(tree);
+	serialize(temp_index);
 	return 0;
 }
