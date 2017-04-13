@@ -1,8 +1,6 @@
 #include <iostream>
 #include <fstream>
 
-#include <boost/archive/binary_iarchive.hpp>
-#include <boost/archive/binary_oarchive.hpp>
 #include <boost/archive/text_oarchive.hpp>
 #include <boost/archive/text_iarchive.hpp>
 #include <boost/archive/xml_oarchive.hpp>
@@ -16,67 +14,53 @@
 #include <boost/container/flat_set.hpp>
 #include <boost/icl/split_interval_map.hpp>
 
-#include "city.h"
-
+using namespace boost::icl;
 using std::string;
 using std::make_pair;
-using namespace boost::icl;
 using std::cout;
 using std::endl;
+
+class City {
+private:
+	string   city_; /* city name */
+	uint64_t low_;  /* low temperature on perticular day */
+	uint64_t high_; /* high temperature on perticular day */
+public:
+	City() : City("", 0, 0) {
+
+	}
+
+	City(string city, uint64_t low, uint64_t high) :
+			city_(city), low_(low), high_(high) {
+
+	}
+
+	bool operator== (const City &rhs) const {
+		return (low_ == rhs.low_ && high_ == rhs.high_ && city_ == rhs.city_);
+	}
+
+
+	bool operator< (const City &rhs) const {
+		return low_ <= rhs.low_;
+	}
+
+    friend class boost::serialization::access; 
+
+    template <typename Archive> 
+    void serialize(Archive &ar, const unsigned int version) { 
+        ar & BOOST_SERIALIZATION_NVP(city_);
+        ar & BOOST_SERIALIZATION_NVP(low_);
+        ar & BOOST_SERIALIZATION_NVP(high_);
+    } 
+};
 
 typedef boost::container::flat_set<City>  TempSet;
 typedef boost::icl::interval_map<uint64_t, TempSet> ranges;
 
-void Query(const ranges &tree) {
-	auto window  = interval<uint64_t>::right_open(15, 26);
-	auto matched = tree & window;
-
-	cout << "Result " << endl;
-	for (const auto &e : matched) {
-		auto r = e.first;
-		auto l = r.lower();
-		auto u = r.upper();
-
-		cout << l << " " << u << endl;
-		for (const auto &t : e.second) {
-			cout << t.to_string() << endl;
-		}
-	}
-}
-
-void display(const ranges &tree) {
-	cout << tree << endl;
-}
-
-void remove_city(ranges &tree, const City &city) {
-	auto w = interval<uint64_t>::right_open(city.getLowTemperature(), city.getHighTemperature());
-
-	auto l = tree.lower_bound(w);
-	if (l == tree.end()) {
-		return;
-	}
-
-	std::vector<discrete_interval<uint64_t>> empty;
-
-	auto u = tree.upper_bound(w);
-	for (auto it = l; it != u; it++) {
-		for (auto sit = it->second.begin(); sit != it->second.end(); sit++) {
-			if (*sit == city) {
-				it->second.erase(sit);
-				break;
-			}
-		}
-		if (it->second.size() == 0) {
-			empty.push_back(it->first);
-		}
-	}
-
-	for (const auto &e : empty) {
-		tree.erase(e);
-	}
-}
-
 namespace boost { namespace serialization {
+	/*
+     * Value in interval_map is boost flat_set -- serialize each element in flat_set
+	 */
 	template<typename Archive, typename Key, typename Compare, typename Allocator>
 	void save(Archive & ar,
     			const boost::container::flat_set<Key, Compare, Allocator> &t,
@@ -110,6 +94,10 @@ namespace boost { namespace serialization {
 		boost::serialization::split_free(ar, t, file_version);
 	}
 
+	/*
+     * Key in interval_map is discrete_interval -- serialize it.
+	 */
+
 	template <typename Archive, typename K>
 	void save(Archive& ar, boost::icl::discrete_interval<K> const& di, unsigned) {
 		auto const& bb = di.bounds().bits();
@@ -138,6 +126,9 @@ namespace boost { namespace serialization {
 		boost::serialization::split_free(ar, di, v);
 	}
 
+	/*
+     * Serialize interval_map
+	 */
 	template <typename Archive, typename K, typename V>
 	void save(Archive& ar, boost::icl::interval_map<K, V> const& im, unsigned) {
 		auto sz = im.iterative_size();
@@ -176,10 +167,6 @@ namespace boost { namespace serialization {
 }
 
 void serialize(const ranges &tree) {
-	cout << "\n===== Current tree : ======= \n";
-	display(tree);
-	cout << "================================= \n";	
-
 	std::ofstream wf{"/tmp/interval.dat"};
 	boost::archive::xml_oarchive oa(wf);
 
@@ -187,77 +174,19 @@ void serialize(const ranges &tree) {
 	wf.flush();
 	wf.close();
 
-	cout << "\n===== Deserialized tree : ======= \n";
 	std::ifstream rf{"/tmp/interval.dat"};
 	boost::archive::xml_iarchive ia(rf);
 	ranges t2;
 	ia >> t2;
-	display(t2);
-	cout << "================================= \n";
 }
 
 int main() {
 	ranges tree;
 
-	City cpur{"cpur", 28, 39};
+	City    cpur{"cpur", 28, 39};
 	TempSet cset{cpur};
-	auto crange = interval<uint64_t>::right_open(cpur.getLowTemperature(), cpur.getHighTemperature());
+	auto    crange = interval<uint64_t>::right_open(28, 39);
 	tree.add(std::make_pair(crange, cset));
-
-	City pune{"pune", 10, 30};
-	TempSet pset{pune};
-	auto prange = interval<uint64_t>::right_open(pune.getLowTemperature(), pune.getHighTemperature());
-	auto ppair  = std::make_pair(prange, pset);
-	tree.add(ppair);
-
-	City kpur{"kpur", 11, 31};
-	TempSet kset{kpur};
-	auto krange = interval<uint64_t>::right_open(kpur.getLowTemperature(), kpur.getHighTemperature());
-	tree.add(std::make_pair(krange, kset));
-
-	City npur{"npur", 25, 42};
-	TempSet nset{npur};
-	auto nrange = interval<uint64_t>::right_open(npur.getLowTemperature(), npur.getHighTemperature());
-	tree.add(std::make_pair(nrange, nset));
-
-	City xpur{"xpur", 35, 45};
-	TempSet xset{xpur};
-	auto xrange = interval<uint64_t>::right_open(xpur.getLowTemperature(), xpur.getHighTemperature());
-	tree.add(std::make_pair(xrange, xset));
-
-	City tpur{"tpur", 25, 51};
-	TempSet tset{tpur};
-	auto trange = interval<uint64_t>::right_open(tpur.getLowTemperature(), tpur.getHighTemperature());
-	tree.add(std::make_pair(trange, tset));
-
-	serialize(tree);
-
-	cout << "Before removal.\n";
-	display(tree);
-
-	remove_city(tree, tpur);
-	cout << "After removal tpur " << endl;
-	display(tree);
-
-	remove_city(tree, xpur);
-	cout << "After removal xpur " << endl;
-	display(tree);
-
-	tree.add(std::make_pair(xrange, xset));
-	cout << "After adding xpur " << endl;
-	display(tree);
-
-	tree.add(std::make_pair(trange, tset));
-	cout << "After adding tpur " << endl;
-	display(tree);
-
-	remove_city(tree, xpur);
-	cout << "After removal xpur " << endl;
-	display(tree);
-
-	remove_city(tree, tpur);
-	cout << "After removal tpur " << endl;
-	display(tree);
 
 	serialize(tree);
 	return 0;
