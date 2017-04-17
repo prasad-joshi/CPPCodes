@@ -1,4 +1,4 @@
-CPPFLAGS := -std=c++14 -g -ggdb -O0
+CPPFLAGS := -std=c++14 -O3
 LIBS := -lboost_serialization
 
 all: main

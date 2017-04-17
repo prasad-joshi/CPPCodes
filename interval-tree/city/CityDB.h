@@ -303,7 +303,6 @@ public:
 		indexCreate(c);
 	}
 
-
 	std::vector<City> query(const string& query) {
 		auto postfix = recursive_decent(query, keywords_);
 		for (const auto &e : postfix) {
