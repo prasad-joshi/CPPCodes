@@ -2,6 +2,8 @@
 #include <fstream>
 #include <chrono>
 
+#include <gflags/gflags.h>
+
 #include "CityDB.h"
 #include "city.h"
 
@@ -55,6 +57,26 @@ public:
 	y = __t__;      \
 } while(0)
 
+void nanosecondsToHumanReadable(uint64_t nsecs, double &value, string &unit) {
+	auto usec = nsecs / 1000.0;
+	auto msec = usec / 1000.0;
+	auto sec  = msec / 1000.0;
+
+	if (sec >= 1.0) {
+		value = sec;
+		unit.assign("seconds");
+	} else if (msec >= 1.0) {
+		value = msec;
+		unit.assign("milli");
+	} else if (usec >= 1.0) {
+		value = usec;
+		unit.assign("micro");
+	} else {
+		value = nsecs;
+		unit.assign("nano");
+	}
+}
+
 void benchmark_query(CityDB &db, const string &query) {
 	size_t         size;
 	const uint64_t ntimes = 10;
@@ -70,11 +92,14 @@ void benchmark_query(CityDB &db, const string &query) {
 	}
 	auto e  = std::chrono::high_resolution_clock::now();
 	auto rt = std::chrono::duration_cast<std::chrono::nanoseconds>(e-s).count();
-	cout << "query(" << query << ")," << size << "," << rt/ntimes << endl;
+
+	double v;
+	string unit;
+	nanosecondsToHumanReadable(rt, v, unit);
+	cout << "query(" << query << ")," << size << "," << v << " " << unit << endl;
 }
 
-void benchmark_insert(CityDB &db) {
-	const uint64_t    nrecords = NRECORDS;
+void benchmark_insert(CityDB &db, const int64_t nrecords) {
 	randomize<double> randTemp;
 	randomize<double> randHum;
 	randomize<string> randCity;
@@ -101,16 +126,17 @@ void benchmark_insert(CityDB &db) {
 	auto e  = std::chrono::high_resolution_clock::now();
 	auto rt = std::chrono::duration_cast<std::chrono::nanoseconds>(e-s).count();
 
-	cout << "insert(" << nrecords << "),0," << rt << endl;
-
-
+	double v;
+	string unit;
+	nanosecondsToHumanReadable(rt, v, unit);
+	cout << "insert(" << nrecords << "),0," << v << " " << unit << endl;
 }
 
-void benchmark() {
+void benchmark(const int32_t nrecords) {
 	CityDB db;
 
 	cout <<"Operation,Result,Time\n";
-	benchmark_insert(db);
+	benchmark_insert(db, nrecords);
 
 	/* QUERY */
 	string q("T < 0");
@@ -235,7 +261,9 @@ static void test() {
 #endif
 }
 
-int main() {
-	benchmark();
+DEFINE_int64(nrecords, 5000, "");
+int main(int argc, char *argv[]) {
+	gflags::ParseCommandLineFlags(&argc, &argv, true);
+	benchmark(FLAGS_nrecords);
 	return 0;
 }

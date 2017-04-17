@@ -31,7 +31,8 @@ using std::map;
 using std::vector;
 using std::string;
 
-using CitySet    = boost::container::flat_set<string>;
+using CityPrimaryKey = uint64_t;
+using CitySet    = boost::container::flat_set<CityPrimaryKey>;
 using BoostIndex = boost::icl::interval_map<int64_t, CitySet>;
 
 enum class IndexAttribute {
@@ -48,8 +49,8 @@ public:
 
 	}
 
-	void addCity(const string &name, int64_t low, int64_t high) {
-		CitySet cset{name};
+	void addCity(const CityPrimaryKey key, int64_t low, int64_t high) {
+		CitySet cset{key};
 		auto crange = interval<int64_t>::right_open(low, high);
 		impl_.add(std::make_pair(crange, cset));
 	}
@@ -121,7 +122,10 @@ public:
 
 class CityDB {
 private:
-	std::map<string, City> cityDB_;
+	std::map<string, City>           cityObjectDB_;
+	std::map<CityPrimaryKey, string> cityDB_; 
+	CityPrimaryKey                   key_;
+
 	Index                  tempIndex_;
 	Index                  humIndex_;
 
@@ -140,7 +144,7 @@ private:
 		std::ofstream wf{file};
 		boost::archive::xml_oarchive oa(wf);
 
-		oa << BOOST_SERIALIZATION_NVP(cityDB_);
+		oa << BOOST_SERIALIZATION_NVP(cityObjectDB_);
 
 		wf.flush();
 		wf.close();
@@ -150,22 +154,24 @@ private:
 		std::ifstream rf{file};
 		boost::archive::xml_iarchive ia(rf);
 
-		ia >> BOOST_SERIALIZATION_NVP(cityDB_);
+		ia >> BOOST_SERIALIZATION_NVP(cityObjectDB_);
 
 		rf.close();
 
 		/* start indices */
-		for (const auto &e : cityDB_) {
-			indexCreate(e.second);
+		assert(key_ == 0);
+		for (const auto &e : cityObjectDB_) {
+			const string &n{e.first};
+			auto k = getPrimaryKey();
+			cityDB_.insert(make_pair(k, n));
+			indexCreate(k, e.second);
 		}
 	}
 
-	void indexCreate(const City &c) {
-		string n{c.getName()};
-
+	void indexCreate( const CityPrimaryKey key, const City &c) {
 		auto l = c.getLowTemperature();
 		auto h = c.getHighTemperature();
-		tempIndex_.addCity(n, l, h);
+		tempIndex_.addCity(key, l, h);
 		if (lowestTemp_ > l) {
 			lowestTemp_ = l;
 		}
@@ -175,7 +181,7 @@ private:
 
 		l = c.getLowHumidity();
 		h = c.getHighHumidity();
-		humIndex_.addCity(n, l, h);
+		humIndex_.addCity(key, l, h);
 		if (lowestHum_ > l) {
 			lowestHum_ = l;
 		}
@@ -185,10 +191,9 @@ private:
 	}
 
 	const CitySet query(const Token &k, const Token &op, const Token &v) {
-		std::vector<City> rc;
-		Index             *indexp;
-		int64_t           low;
-		int64_t           high;
+		Index   *indexp;
+		int64_t low;
+		int64_t high;
 
 		if (k.getValue() == "T") {
 			indexp = &tempIndex_;
@@ -284,23 +289,30 @@ private:
 		assert(!resultStack_.isEmpty());
 	}
 
+	CityPrimaryKey getPrimaryKey() {
+		return ++key_;
+	}
+
 public:
 	CityDB() :
 		tempIndex_(IndexAttribute::TEMPERATURE),
-		humIndex_(IndexAttribute::HUMIDITY) {
+		humIndex_(IndexAttribute::HUMIDITY), key_(0) {
 
 	}
 
 	bool addCity(const City &c) {
-		string n{c.getName()};
+		const string &n{c.getName()};
 
-		auto it = cityDB_.find(n);
-		if (it != cityDB_.end()) {
+		auto it = cityObjectDB_.find(n);
+		if (it != cityObjectDB_.end()) {
 			return false;
 		}
 
-		cityDB_.insert(make_pair(n, c));
-		indexCreate(c);
+		auto k = getPrimaryKey();
+
+		cityObjectDB_.insert(make_pair(n, c));
+		cityDB_.insert(make_pair(k, n));
+		indexCreate(k, c);
 	}
 
 	std::vector<City> query(const string& query) {
@@ -334,8 +346,9 @@ public:
 		assert(resultStack_.size() == 1);
 		std::vector<City> rc;
 		for (const auto &e : resultStack_.pop()) {
-			auto it = cityDB_.find(e);
-			rc.push_back(it->second);
+			auto dbit = cityDB_.find(e);
+			auto obit = cityObjectDB_.find(dbit->second);
+			rc.push_back(obit->second);
 		}
 		assert(resultStack_.isEmpty());
 		return rc;

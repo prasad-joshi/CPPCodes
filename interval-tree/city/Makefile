@@ -1,5 +1,5 @@
 CPPFLAGS := -std=c++14 -O3
-LIBS := -lboost_serialization
+LIBS := -lboost_serialization -lgflags
 
 all: main
 
