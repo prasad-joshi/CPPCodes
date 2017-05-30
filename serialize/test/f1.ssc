@@ -1,0 +1,11 @@
+using abcd = i64;
+
+struct xyz {
+	1:i64 x;
+	10:i32 y;
+};
+
+struct pqr {
+	1: struct xyz x;
+	2: abcd e;
+};
