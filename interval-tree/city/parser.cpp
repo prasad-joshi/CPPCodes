@@ -36,7 +36,7 @@ vector<Token> recursive_decent(const string &expr, const vector<string>& keyword
 
 	vector<Token> outQ;
 	Stack<Token>  stack;
-	for (const auto &e: tokens) {
+	for (auto &e: tokens) {
 		if (e.isOperand()) {
 			outQ.emplace_back(e);
 			continue;
@@ -63,7 +63,7 @@ vector<Token> recursive_decent(const string &expr, const vector<string>& keyword
 				break;
 			}
 		}
-		stack.push(e);
+		stack.push(std::move(e));
 	}
 
 	while (!stack.isEmpty()) {
