@@ -6,7 +6,6 @@
 
 namespace Game {
 
-//class OffsetCoord;
 enum class Player : uint8_t {
 	kFree,
 	kPlayer1,
@@ -70,25 +69,10 @@ public:
 	bool operator() (const Hex& lhs, Hex& rhs) const;
 };
 
-#if 0
-class OffsetCoord {
-public:
-	OffsetCoord(int16_t col, int16_t row);
-	bool operator == (const OffsetCoord& rhs) const;
-	bool operator != (const OffsetCoord& rhs) const;
-
-	Hex ToHex() const;
-	friend std::ostream& operator<<(std::ostream& os, const OffsetCoord& o);;
-private:
-	const int16_t col_;
-	const int16_t row_;
-};
-#endif
-
 class HexBoard {
 public:
 	HexBoard(uint16_t nrows);
-	void Display() const;
+	void Display(std::ostream& os) const;
 
 	bool PlayerPlayed(const Hex& hex, Player player);
 	bool IsFree(const Hex& hex) const;

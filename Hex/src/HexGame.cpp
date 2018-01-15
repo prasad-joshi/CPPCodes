@@ -1,13 +1,20 @@
 #include <iostream>
 #include <cassert>
 
+#include <gflags/gflags.h>
+
 #include "Hex.h"
 
 using namespace Game;
-int main() {
+
+DEFINE_int32(nrows, 7, "Size nrows X nrows");
+
+int main(int argc, char *argv[]) {
+	gflags::ParseCommandLineFlags(&argc, &argv, true);
+
 	auto quit = false;
 	while (not quit) {
-		HexBoard board(7);
+		HexBoard board(FLAGS_nrows);
 		Player player = Player::kPlayer1;
 		while (not board.IsGameOver(player) and not quit) {
 			std::cout << board << std::endl;

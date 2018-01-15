@@ -98,39 +98,6 @@ bool HexEqual::operator() (const Hex& lhs, Hex& rhs) const {
 	return lhs.q_ == rhs.q_ and lhs.r_ == rhs.r_ and lhs.s_ == rhs.s_;
 }
 
-#if 0
-OffsetCoord Hex::ToOffsetCoord() const {
-	int16_t col = q_ + int16_t((r_ + Hex::kOdd * (r_ & 1)) / 2);
-	int16_t row = r_;
-	return OffsetCoord(col, row);
-}
-
-std::ostream& operator<<(std::ostream& os, const OffsetCoord& offset) {
-	os << "OffsetCoord col " << offset.col_ << " row " << offset.row_;
-	return os;
-}
-
-OffsetCoord::OffsetCoord(int16_t col, int16_t row) : col_(col), row_(row) {
-
-}
-
-bool OffsetCoord::operator == (const OffsetCoord& rhs) const {
-	return row_ == rhs.row_ and col_ == rhs.col_;
-}
-
-bool OffsetCoord::operator != (const OffsetCoord& rhs) const {
-	return not (*this == rhs);
-}
-
-
-Hex OffsetCoord::ToHex() const {
-	int q = col_ - int16_t((row_ + Hex::kOdd * (row_ & 1)) / 2);
-	int r = row_;
-	int s = -q - r;
-	return Hex(q, r, s);
-}
-#endif
-
 HexBoard::HexBoard(uint16_t nrows) : nrows_(nrows), moves_possible_(nrows * nrows) {
 	for (auto row = 0u; row < nrows; ++row) {
 		for (auto col = 0u; col < nrows; ++col) {
@@ -139,7 +106,8 @@ HexBoard::HexBoard(uint16_t nrows) : nrows_(nrows), moves_possible_(nrows * nrow
 	}
 }
 
-void HexBoard::Display() const {
+void HexBoard::Display(std::ostream& os) const {
+	os << "Board Size " << nrows_ << " X " << nrows_ << std::endl;
 	std::string print;
 	for (auto row = 0; row < nrows_; ++row) {
 		print.clear();
@@ -166,12 +134,12 @@ void HexBoard::Display() const {
 				print.append(tmp);
 			}
 		}
-		std::cout << print << std::endl;
+		os << print << std::endl;
 	}
 }
 
 std::ostream& operator<<(std::ostream& os, const HexBoard& board) {
-	board.Display();
+	board.Display(os);
 	return os;
 }
 
