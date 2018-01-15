@@ -6,7 +6,7 @@
 
 namespace Game {
 
-class OffsetCoord;
+//class OffsetCoord;
 enum class Player : uint8_t {
 	kFree,
 	kPlayer1,
@@ -18,7 +18,7 @@ Player NextPlayer(Player player);
 
 class Hex {
 public:
-	Hex(int16_t r, int16_t q, int16_t s);
+	Hex(int16_t r, int16_t q);
 
 	Hex operator + (const Hex& rhs) const;
 	Hex operator - (const Hex& rhs) const;
@@ -26,7 +26,7 @@ public:
 	bool operator == (const Hex& rhs) const;
 	bool operator != (const Hex& rhs) const;
 
-	OffsetCoord ToOffsetCoord() const;
+	//OffsetCoord ToOffsetCoord() const;
 
 	void SetPlayer(Player player) const;
 	Player GetPlayer() const;
@@ -70,6 +70,7 @@ public:
 	bool operator() (const Hex& lhs, Hex& rhs) const;
 };
 
+#if 0
 class OffsetCoord {
 public:
 	OffsetCoord(int16_t col, int16_t row);
@@ -82,14 +83,15 @@ private:
 	const int16_t col_;
 	const int16_t row_;
 };
+#endif
 
 class HexBoard {
 public:
 	HexBoard(uint16_t nrows);
 	void Display() const;
 
-	bool PlayerPlayed(const OffsetCoord& offset, Player player);
-	bool IsFree(const OffsetCoord& offset) const;
+	bool PlayerPlayed(const Hex& hex, Player player);
+	bool IsFree(const Hex& hex) const;
 	bool HasWinner() const;
 	Player GetWinner() const;
 	bool IsGameOver(Player current) const;

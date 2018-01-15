@@ -9,21 +9,21 @@
 namespace Game {
 
 const std::vector<Hex> Hex::kDirections = {
-	Hex(1, 0, -1),
-	Hex(1, -1, 0),
-	Hex(0, -1, 1),
-	Hex(-1, 0, 1),
-	Hex(-1, 1, 0),
-	Hex(0, 1, -1)
+	Hex(1, 0),
+	Hex(1, -1),
+	Hex(0, -1),
+	Hex(-1, 0),
+	Hex(-1, 1),
+	Hex(0, 1)
 };
 
 const std::vector<Hex> Hex::kDiagonals = {
-	Hex(2, -1, -1),
-	Hex(1, -2, 1),
-	Hex(-1, -1, 2),
-	Hex(-2, 1, 1),
-	Hex(-1, 2, -1),
-	Hex(1, 1, -2)
+	Hex(2, -1),
+	Hex(1, -2),
+	Hex(-1, -1),
+	Hex(-2, 1),
+	Hex(-1, 2),
+	Hex(1, 1)
 };
 
 std::string PlayerToString(Player player) {
@@ -50,16 +50,16 @@ std::ostream& operator<<(std::ostream& os, const Hex& hex) {
 	return os;
 }
 
-Hex::Hex(int16_t q, int16_t r, int16_t s) : q_(q), r_(r), s_(s) {
+Hex::Hex(int16_t q, int16_t r) : q_(q), r_(r), s_(-q - r) {
 
 }
 
 Hex Hex::operator + (const Hex& rhs) const {
-	return Hex(q_ + rhs.q_, r_ + rhs.r_, s_ + rhs.s_);
+	return Hex(q_ + rhs.q_, r_ + rhs.r_);
 }
 
 Hex Hex::operator - (const Hex& rhs) const {
-	return Hex(q_ - rhs.q_, r_ - rhs.r_, s_ - rhs.s_);
+	return Hex(q_ - rhs.q_, r_ - rhs.r_);
 }
 
 bool Hex::operator == (const Hex& rhs) const {
@@ -98,6 +98,7 @@ bool HexEqual::operator() (const Hex& lhs, Hex& rhs) const {
 	return lhs.q_ == rhs.q_ and lhs.r_ == rhs.r_ and lhs.s_ == rhs.s_;
 }
 
+#if 0
 OffsetCoord Hex::ToOffsetCoord() const {
 	int16_t col = q_ + int16_t((r_ + Hex::kOdd * (r_ & 1)) / 2);
 	int16_t row = r_;
@@ -128,11 +129,12 @@ Hex OffsetCoord::ToHex() const {
 	int s = -q - r;
 	return Hex(q, r, s);
 }
+#endif
 
 HexBoard::HexBoard(uint16_t nrows) : nrows_(nrows), moves_possible_(nrows * nrows) {
 	for (auto row = 0u; row < nrows; ++row) {
 		for (auto col = 0u; col < nrows; ++col) {
-			board_.emplace(OffsetCoord(col, row).ToHex());
+			board_.emplace(Hex(col, row));
 		}
 	}
 }
@@ -143,7 +145,7 @@ void HexBoard::Display() const {
 		print.clear();
 		print.append(std::string(row * 2, ' '));
 		for (auto col = 0; col < nrows_; ++col) {
-			auto it = board_.find(OffsetCoord(col, row).ToHex());
+			auto it = board_.find(Hex(col, row));
 			assert(it != board_.end());
 
 
@@ -173,12 +175,12 @@ std::ostream& operator<<(std::ostream& os, const HexBoard& board) {
 	return os;
 }
 
-bool HexBoard::PlayerPlayed(const OffsetCoord& offset, Player player) {
-	if (not IsFree(offset)) {
+bool HexBoard::PlayerPlayed(const Hex& hex, Player player) {
+	if (not IsFree(hex)) {
 		return false;
 	}
 
-	auto it = board_.find(offset.ToHex());
+	auto it = board_.find(hex);
 	assert(it != board_.end() and it->GetPlayer() == Player::kFree);
 	it->SetPlayer(player);
 	++moves_played_;
@@ -190,8 +192,8 @@ bool HexBoard::HasValidMove() const {
 	return moves_played_ == moves_possible_;
 }
 
-bool HexBoard::IsFree(const OffsetCoord& offset) const {
-	auto it = board_.find(offset.ToHex());
+bool HexBoard::IsFree(const Hex& hex) const {
+	auto it = board_.find(hex);
 	return it != board_.end() and it->GetPlayer() == Player::kFree;
 }
 
@@ -273,7 +275,7 @@ bool HexBoard::IsGameOver(Player current) const {
 				break;
 			}
 
-			auto it = board_.find(OffsetCoord(col, 0).ToHex());
+			auto it = board_.find(Hex(col, 0));
 			assert(it != board_.end());
 			if (it->GetPlayer() != Player::kPlayer1) {
 				continue;
@@ -288,7 +290,7 @@ bool HexBoard::IsGameOver(Player current) const {
 			if (HasWinner()) {
 				break;
 			}
-			auto it = board_.find(OffsetCoord(0, row).ToHex());
+			auto it = board_.find(Hex(0, row));
 			assert(it != board_.end());
 			if (it->GetPlayer() != Player::kPlayer2) {
 				continue;
