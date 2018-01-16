@@ -1,4 +1,5 @@
 #include <vector>
+#include <algorithm>
 #include <cstdint>
 #include <iostream>
 
@@ -46,7 +47,7 @@ Player NextPlayer(Player player) {
 }
 
 std::ostream& operator<<(std::ostream& os, const Hex& hex) {
-	os << "HEX q " << hex.q_ << " r " << hex.r_ << " s " << hex.s_;
+	os << "HEX(row=" << hex.r_ << ", col=" << hex.q_ << ")";
 	return os;
 }
 
@@ -68,6 +69,10 @@ bool Hex::operator == (const Hex& rhs) const {
 
 bool Hex::operator != (const Hex& rhs) const {
 	return not (*this == rhs);
+}
+
+bool Hex::operator < (const Hex& rhs) const {
+	return q_ < rhs.q_ and r_ < rhs.r_;
 }
 
 int16_t Hex::GetRow() const {
@@ -138,6 +143,10 @@ void HexBoard::Display(std::ostream& os) const {
 	}
 }
 
+void HexBoard::Display() const {
+	Display(std::cout);
+}
+
 std::ostream& operator<<(std::ostream& os, const HexBoard& board) {
 	board.Display(os);
 	return os;
@@ -178,11 +187,12 @@ void HexBoard::SetWinner(Player player) const {
 	winner_ = player;
 }
 
-bool HexBoard::IsPlayer1Winner(const Hex& hex, uint16_t matched, Player player) const {
-	assert(player == Player::kPlayer1 && not HasWinner());
+bool HexBoard::IsPlayerWinner(const Hex& current, Player player) const {
+	assert(player != Player::kFree && not HasWinner());
 
-	hex.ForEachNeighbor([&] (const Hex& neighbor) mutable {
-		if (neighbor.GetRow() <= hex.GetRow()) {
+	current.ForEachNeighbor([&] (const Hex& neighbor) mutable {
+		auto vit = std::find(winner_path_.begin(), winner_path_.end(), neighbor);
+		if (vit != winner_path_.end()) {
 			return true;
 		}
 
@@ -190,40 +200,42 @@ bool HexBoard::IsPlayer1Winner(const Hex& hex, uint16_t matched, Player player) 
 		if (it == this->board_.end() or it->GetPlayer() != player) {
 			return true;
 		}
+		this->winner_path_.emplace_back(*it);
 
-		if (matched >= this->nrows_ - 1) {
-			this->SetWinner(player);
+		switch (player) {
+		default:
+			assert(0);
 			return false;
+		case Player::kPlayer1:
+			if (it->GetRow() >= this->nrows_ - 1) {
+				this->SetWinner(player);
+				return false;
+			}
+			break;
+		case Player::kPlayer2:
+			if (it->GetCol() >= this->nrows_ - 1) {
+				this->SetWinner(player);
+				return false;
+			}
+			break;
 		}
 
-		this->IsPlayer1Winner(neighbor, matched + 1, player);
-		return not this->HasWinner();
+		this->IsPlayerWinner(*it, player);
+		if (not this->HasWinner()) {
+			this->winner_path_.pop_back();
+			return true;
+		}
+		return false;
 	});
 	return HasWinner() == true and GetWinner() == player;
 }
 
-bool HexBoard::IsPlayer2Winner(const Hex& hex, uint16_t matched, Player player) const {
-	assert(player == Player::kPlayer2 && not HasWinner());
-
-	hex.ForEachNeighbor([&] (const Hex& neighbor) mutable {
-		if (neighbor.GetCol() <= hex.GetCol()) {
-			return true;
-		}
-
-		auto it = this->board_.find(neighbor);
-		if (it == this->board_.end() or it->GetPlayer() != player) {
-			return true;
-		}
-
-		if (matched >= this->nrows_ - 1) {
-			this->SetWinner(player);
-			return false;
-		}
-
-		this->IsPlayer2Winner(neighbor, matched + 1, player);
-		return not this->HasWinner();
+std::vector<Hex> HexBoard::GetWinnerPath() const {
+	auto path = winner_path_;
+	std::sort(path.begin(), path.end(), [] (const Hex& lhs, const Hex& rhs) {
+		return lhs < rhs;
 	});
-	return HasWinner() == true and GetWinner() == player;
+	return path;
 }
 
 bool HexBoard::IsGameOver(Player current) const {
@@ -233,15 +245,14 @@ bool HexBoard::IsGameOver(Player current) const {
 		return true;
 	}
 
+	assert(winner_path_.empty());
 	switch (current) {
 	default:
 		assert(0);
 		return false;
 	case Player::kPlayer1: {
 		for (auto col = 0; col < nrows_; ++col) {
-			if (HasWinner()) {
-				break;
-			}
+			assert(winner_path_.empty());
 
 			auto it = board_.find(Hex(col, 0));
 			assert(it != board_.end());
@@ -249,30 +260,45 @@ bool HexBoard::IsGameOver(Player current) const {
 				continue;
 			}
 
-			IsPlayer1Winner(*it, 1);
+			winner_path_.emplace_back(*it);
+			IsPlayerWinner(*it, current);
+
+			if (HasWinner()) {
+				break;
+			}
+			assert(winner_path_.size() == 1);
+			winner_path_.pop_back();
 		}
 		break;
 	}
 	case Player::kPlayer2: {
 		for (auto row = 0; row < nrows_; ++row) {
-			if (HasWinner()) {
-				break;
-			}
+			assert(winner_path_.empty());
+
 			auto it = board_.find(Hex(0, row));
 			assert(it != board_.end());
 			if (it->GetPlayer() != Player::kPlayer2) {
 				continue;
 			}
 
-			IsPlayer2Winner(*it, 1);
+			winner_path_.emplace_back(*it);
+			IsPlayerWinner(*it, current);
+
+			if (HasWinner()) {
+				break;
+			}
+			assert(winner_path_.size() == 1);
+			winner_path_.pop_back();
 		}
 		break;
 	}
 	}
 
 	if (HasWinner()) {
+		assert(not winner_path_.empty());
 		return true;
 	}
+	assert(winner_path_.empty());
 
 	return HasValidMove();
 }

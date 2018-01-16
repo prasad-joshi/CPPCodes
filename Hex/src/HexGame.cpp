@@ -52,8 +52,15 @@ int main(int argc, char *argv[]) {
 			if (not board.HasWinner()) {
 				std::cout << "Game drawn" << std::endl;
 			} else {
-				std::cout << PlayerToString(board.GetWinner())
-					<< " Won!!!" << std::endl;
+				std::cout << "Final Board Possition " << std::endl
+					<< board << std::endl
+					<< PlayerToString(board.GetWinner())
+					<< " Won!!!" << std::endl
+					<< "Path ";
+				for (auto hex : board.GetWinnerPath()) {
+					std::cout << hex << " ";
+				}
+				std::cout << std::endl;
 			}
 
 			std::string input;

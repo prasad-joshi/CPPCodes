@@ -25,6 +25,8 @@ public:
 	bool operator == (const Hex& rhs) const;
 	bool operator != (const Hex& rhs) const;
 
+	bool operator < (const Hex& rhs) const;
+
 	//OffsetCoord ToOffsetCoord() const;
 
 	void SetPlayer(Player player) const;
@@ -53,9 +55,9 @@ public:
 	friend class HexHash;
 	friend class HexEqual;
 private:
-	const int16_t q_;
-	const int16_t r_;
-	const int16_t s_;
+	int16_t q_;
+	int16_t r_;
+	int16_t s_;
 	mutable Player player_{Player::kFree};
 };
 
@@ -73,19 +75,18 @@ class HexBoard {
 public:
 	HexBoard(uint16_t nrows);
 	void Display(std::ostream& os) const;
+	void Display() const;
 
 	bool PlayerPlayed(const Hex& hex, Player player);
 	bool IsFree(const Hex& hex) const;
 	bool HasWinner() const;
 	Player GetWinner() const;
 	bool IsGameOver(Player current) const;
+	std::vector<Hex> GetWinnerPath() const;
 
 	friend std::ostream& operator<<(std::ostream& os, const HexBoard& dt);
 private:
-	bool IsPlayer1Winner(const Hex& hex, uint16_t matched,
-		Player player = Player::kPlayer1) const;
-	bool IsPlayer2Winner(const Hex& hex, uint16_t matched,
-		Player player = Player::kPlayer2) const;
+	bool IsPlayerWinner(const Hex& current, Player player) const;
 	bool HasValidMove() const;
 	void SetWinner(Player player) const;
 private:
@@ -99,5 +100,6 @@ private:
 	};
 
 	mutable Player winner_{Player::kFree};
+	mutable std::vector<Hex> winner_path_;
 };
 }

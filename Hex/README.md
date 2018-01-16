@@ -2,6 +2,7 @@
 1. `cmake`
 2. `gtest`
 3. `glog`
+4. `gflags`
 
 # Instructions to compile code
 1. Goto top level source directory
@@ -18,3 +19,9 @@
 5. Run `make`
 
 6. Game executable can be found in `${TOP_LEVEL_DIR}/build/src/HexGame`
+
+# Running Game
+
+1. Print help message `${TOP_LEVEL_DIR}/build/src/HexGame --help`
+
+2. Setting board size `${TOP_LEVEL_DIR}/build/src/HexGame -nrows 11`. Default value of `nrows` is `7`.
