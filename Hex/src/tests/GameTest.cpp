@@ -17,12 +17,12 @@ TEST(HexTest, Neighbors) {
 }
 
 TEST(GameTest, RandomTest) {
-	auto const NROWS = 7;
+	auto const NROWS = 101;
 	std::random_device rd;
 	std::mt19937 eng(rd());
 	std::uniform_int_distribution<> distr(0, NROWS);
 
-	for (auto i = 0; i < 64; ++i) {
+	for (auto i = 0; i < 5; ++i) {
 		HexBoard board(NROWS);
 		auto player = Player::kPlayer1;
 		while (not board.IsGameOver(player)) {

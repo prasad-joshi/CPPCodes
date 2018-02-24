@@ -64,7 +64,7 @@ Hex Hex::operator - (const Hex& rhs) const {
 }
 
 bool Hex::operator == (const Hex& rhs) const {
-	return q_ == rhs.q_ and r_ == rhs.r_ and s_ == rhs.s_;
+	return q_ == rhs.q_ and r_ == rhs.r_;
 }
 
 bool Hex::operator != (const Hex& rhs) const {
@@ -100,7 +100,7 @@ size_t HexHash::operator() (const Hex& hex) const {
 }
 
 bool HexEqual::operator() (const Hex& lhs, Hex& rhs) const {
-	return lhs.q_ == rhs.q_ and lhs.r_ == rhs.r_ and lhs.s_ == rhs.s_;
+	return lhs.q_ == rhs.q_ and lhs.r_ == rhs.r_;
 }
 
 HexBoard::HexBoard(uint16_t nrows) : nrows_(nrows), moves_possible_(nrows * nrows) {
@@ -191,16 +191,24 @@ bool HexBoard::IsPlayerWinner(const Hex& current, Player player) const {
 	assert(player != Player::kFree && not HasWinner());
 
 	current.ForEachNeighbor([&] (const Hex& neighbor) mutable {
+#if 1
+		auto eit = this->evaluated_.find(neighbor);
+		if (eit != this->evaluated_.end()) {
+			return true;
+		}
+#else
 		auto vit = std::find(winner_path_.begin(), winner_path_.end(), neighbor);
 		if (vit != winner_path_.end()) {
 			return true;
 		}
+#endif
 
 		auto it = this->board_.find(neighbor);
 		if (it == this->board_.end() or it->GetPlayer() != player) {
 			return true;
 		}
 		this->winner_path_.emplace_back(*it);
+		this->evaluated_.emplace(*it);
 
 		switch (player) {
 		default:
@@ -246,54 +254,46 @@ bool HexBoard::IsGameOver(Player current) const {
 	}
 
 	assert(winner_path_.empty());
-	switch (current) {
-	default:
-		assert(0);
-		return false;
-	case Player::kPlayer1: {
-		for (auto col = 0; col < nrows_; ++col) {
-			assert(winner_path_.empty());
 
-			auto it = board_.find(Hex(col, 0));
-			assert(it != board_.end());
-			if (it->GetPlayer() != Player::kPlayer1) {
-				continue;
+	int16_t row = 0;
+	int16_t col = 0;
+	for (auto c = 0; c < nrows_; ++c) {
+		evaluated_.clear();
+		switch (current) {
+		default:
+			assert(0);
+			return false;
+		case Player::kPlayer1:
+			if (c > 0) {
+				++col;
 			}
-
-			winner_path_.emplace_back(*it);
-			IsPlayerWinner(*it, current);
-
-			if (HasWinner()) {
-				break;
+			break;
+		case Player::kPlayer2:
+			if (c > 0) {
+				++row;
 			}
-			assert(winner_path_.size() == 1);
-			winner_path_.pop_back();
 		}
-		break;
-	}
-	case Player::kPlayer2: {
-		for (auto row = 0; row < nrows_; ++row) {
-			assert(winner_path_.empty());
 
-			auto it = board_.find(Hex(0, row));
-			assert(it != board_.end());
-			if (it->GetPlayer() != Player::kPlayer2) {
-				continue;
-			}
+		assert(winner_path_.empty());
 
-			winner_path_.emplace_back(*it);
-			IsPlayerWinner(*it, current);
-
-			if (HasWinner()) {
-				break;
-			}
-			assert(winner_path_.size() == 1);
-			winner_path_.pop_back();
+		auto it = board_.find(Hex(col, row));
+		assert(it != board_.end());
+		if (it->GetPlayer() != current) {
+			continue;
 		}
-		break;
-	}
+
+		winner_path_.emplace_back(*it);
+		evaluated_.emplace(*it);
+		IsPlayerWinner(*it, current);
+
+		if (HasWinner()) {
+			break;
+		}
+		assert(winner_path_.size() == 1);
+		winner_path_.pop_back();
 	}
 
+	evaluated_.clear();
 	if (HasWinner()) {
 		assert(not winner_path_.empty());
 		return true;

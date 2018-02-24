@@ -101,5 +101,6 @@ private:
 
 	mutable Player winner_{Player::kFree};
 	mutable std::vector<Hex> winner_path_;
+	mutable std::unordered_set<Hex, HexHash, HexEqual> evaluated_;
 };
 }
