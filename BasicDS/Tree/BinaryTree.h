@@ -46,9 +46,76 @@ public:
 		}
 	};
 
+	class InorderIterator {
+	public:
+		InorderIterator(Node* rootp) {
+			if (not rootp) {
+				return;
+			}
+			nodep_ = LeftMostChild(rootp);
+		}
+
+		Node& operator *() {
+			return *nodep_;
+		}
+
+		Node* operator ->() {
+			return nodep_;
+		}
+
+		Node* operator &() {
+			return nodep_;
+		}
+
+		bool operator == (const InorderIterator& rhs) {
+			return nodep_ == rhs.nodep_;
+		}
+
+		bool operator != (const InorderIterator& rhs) {
+			return nodep_ != rhs.nodep_;
+		}
+
+		InorderIterator& operator++() {
+			if (not nodep_) {
+				return *this;
+			}
+
+			if (nodep_->rightp) {
+				nodep_ = LeftMostChild(nodep_->rightp);
+				return *this;
+			}
+			
+			if (nodep_->parentp) {
+				while (nodep_->parentp and nodep_->parentp->rightp == nodep_) {
+					nodep_ = nodep_->parentp;
+				}
+
+				if (nodep_->parentp) {
+					nodep_ = nodep_->parentp;
+					return *this;
+				}
+			}
+
+			nodep_ = nullptr;
+			return *this;
+		}
+	private:
+		Node* LeftMostChild(Node* nodep) {
+			if (not nodep) {
+				return nullptr;
+			}
+			while (nodep->leftp) {
+				nodep = nodep->leftp;
+			}
+			return nodep;
+		}
+	private:
+		Node* nodep_{nullptr};
+	};
+
 	class BfsIterator {
 	public:
-		BfsIterator(BinaryTree<T>* treep, Node* nodep) : treep_(treep), nodep_(nodep) {
+		BfsIterator(Node* nodep) : nodep_(nodep) {
 			AddChildrenToVisit(nodep_);
 		}
 
@@ -98,7 +165,6 @@ public:
 		}
 
 	private:
-		BinaryTree<T>* treep_{nullptr};
 		Node* nodep_{nullptr};
 		std::queue<Node*> to_visit_;
 	};
@@ -113,12 +179,13 @@ public:
 		return not rootp->leftp and not rootp->rightp;
 	}
 
-	virtual BfsIterator begin() {
-		return BfsIterator(this, rootp);
+	virtual InorderIterator begin() {
+		/* TODO: InorderIterator exposes node pointer - avoid it */
+		return InorderIterator(rootp);
 	}
 
-	virtual BfsIterator end() {
-		return BfsIterator(this, nullptr);
+	virtual InorderIterator end() {
+		return InorderIterator(nullptr);
 	}
 
 	virtual Node* NewNode(Node* parentp, T data) {
@@ -136,8 +203,9 @@ public:
 			return;
 		}
 
-		auto eit = end();
-		for (auto it = begin(); it != eit; ++it) {
+		/* Using BfsIterator for BinaryTree creates balanced tree */
+		auto eit = BfsIterator(nullptr);
+		for (auto it = BfsIterator(rootp); it != eit; ++it) {
 			auto parentp = &it;
 			if (not parentp->leftp) {
 				auto new_nodep = NewNode(parentp, std::move(data));

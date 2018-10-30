@@ -14,6 +14,7 @@ auto GenerateRandomNumbers(int size) {
 		auto no = rng() ;
 		return no % 500;
 	});
+	std::iota(v.begin(), v.end(), 0);
 	return v;
 }
 
@@ -33,7 +34,7 @@ int main(int argc, char* argv[]) {
 		return EINVAL;
 	}
 
-	BST<int> tree;
+	BinaryTree<int> tree;
 	for (auto e : GenerateRandomNumbers(nelements)) {
 		tree.Insert(e);
 	}
