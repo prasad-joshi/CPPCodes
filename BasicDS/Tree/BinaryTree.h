@@ -46,6 +46,63 @@ public:
 		}
 	};
 
+	class PreorderIterator {
+	public:
+		PreorderIterator(Node* nodep) : nodep_(nodep) {
+		}
+
+		Node& operator *() {
+			return *nodep_;
+		}
+
+		Node* operator ->() {
+			return nodep_;
+		}
+
+		Node* operator &() {
+			return nodep_;
+		}
+
+		bool operator == (const PreorderIterator& rhs) {
+			return nodep_ == rhs.nodep_;
+		}
+
+		bool operator != (const PreorderIterator& rhs) {
+			return nodep_ != rhs.nodep_;
+		}
+
+		PreorderIterator& operator++() {
+			if (not nodep_) {
+				return *this;
+			}
+
+			if (nodep_->leftp) {
+				nodep_ = nodep_->leftp;
+				return *this;
+			} else if (nodep_->rightp) {
+				nodep_ = nodep_->rightp;
+				return *this;
+			}
+
+			if (nodep_->parentp->leftp == nodep_) {
+				while (nodep_->parentp and nodep_->parentp->leftp == nodep_ and not 
+					nodep_ = nodep_->parentp;
+				}
+				if (nodep_->parentp and nodep_->parentp->rightp) {
+					nodep_ = nodep_->parentp->rightp;
+				} else {
+					nodep_ = nullptr;
+				}
+				return *this;
+			}
+
+			return *this;
+		}
+
+	private:
+		Node* nodep_;
+	};
+
 	class InorderIterator {
 	public:
 		InorderIterator(Node* rootp) {

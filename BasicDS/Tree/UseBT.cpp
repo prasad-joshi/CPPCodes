@@ -38,6 +38,11 @@ int main(int argc, char* argv[]) {
 	for (auto e : GenerateRandomNumbers(nelements)) {
 		tree.Insert(e);
 	}
+
+	for (const auto& nodep : tree) {
+		std::cout << nodep.data_ << std::endl;
+	}
+
 	std::cout << tree << std::endl;
 	std::cout << tree.IsBalanced() << std::endl;
 	return 0;
