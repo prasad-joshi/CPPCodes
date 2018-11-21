@@ -3,12 +3,19 @@
 #include <utility>
 #include <iostream>
 
-template <typename T, typename Comp = std::less_equal<T>>
+template <typename T, typename Comp = std::greater_equal<T>>
 class PriorityQueue {
 public:
 	PriorityQueue() {
 		/* first element is unused */
 		queue_.emplace_back(0);
+	}
+
+	template <typename ForwardIt>
+	PriorityQueue(ForwardIt it, ForwardIt eit) {
+		queue_.emplace_back(0);
+		std::copy(it, eit, std::back_inserter(queue_));
+		Heapify();
 	}
 
 	const T& Top() const noexcept {
@@ -20,38 +27,48 @@ public:
 	}
 
 	void Push(T element) {
-		/* increase the size */
-		queue_.emplace_back(0);
+		queue_.emplace_back(element);
+		ShiftUp(queue_.size() - 1);
+	}
 
-		auto index = queue_.size() - 1;
-		for (; index > 1 and func(queue_[index/2], element); index /= 2) {
-			queue_[index] = std::move(queue_[index/2]);
+	void Pop() {
+		queue_[1] = std::move(queue_.back());
+		queue_.pop_back();
+		ShiftDown(1);
+	}
+
+private:
+	void Heapify() {
+		auto mid = (queue_.size() - 1) / 2;
+		for (auto i = mid; i >= 1; --i) {
+			ShiftDown(i);
+		}
+	}
+
+	void ShiftDown(size_t index) {
+		auto element = std::move(queue_[index]);
+		auto size = queue_.size() - 1;
+		auto child = index * 2;
+		for (; child <= size ;) {
+			if (child < size and func(queue_[child+1], queue_[child])) {
+				++child;
+			}
+			if (not func(queue_[child], element)) {
+				break;
+			}
+			queue_[index] = std::move(queue_[child]);
+			index = child;
+			child *= 2;
 		}
 		queue_[index] = std::move(element);
 	}
 
-	void Pop() {
-		auto removed = std::move(queue_[1]);
-		auto last = std::move(queue_.back());
-		queue_.pop_back();
-
-		size_t size = queue_.size() - 1;
-		size_t current_node = 1;
-		size_t child = 2;
-		while (child <= size) {
-			if (child < size and func(queue_[child], queue_[child+1])) {
-				++child;
-			}
-
-			if (not func(last, queue_[child])) {
-				break;
-			}
-
-			queue_[current_node] = std::move(queue_[child]);
-			current_node = child;
-			child *= 2;
+	void ShiftUp(size_t index) {
+		auto element = std::move(queue_[index]);
+		for (; index > 1 and not func(queue_[index/2], element); index /= 2) {
+			queue_[index] = std::move(queue_[index/2]);
 		}
-		queue_[current_node] = std::move(last);
+		queue_[index] = std::move(element);
 	}
 private:
 	std::vector<T> queue_;
@@ -62,14 +79,19 @@ template <typename T>
 using MaxHeap = PriorityQueue<T>;
 
 template <typename T>
-using MinHeap = PriorityQueue<T, std::greater_equal<T>>;
+using MinHeap = PriorityQueue<T, std::less_equal<T>>;
 
 int main(int argc, char* argv[]) {
+	std::vector<int> elements;
+	for (int i = 1; argv[i]; ++i) {
+		auto n = std::atoi(argv[i]);
+		elements.push_back(n);
+	}
+
 	{
 		MaxHeap<int> max;
-		for (int i = 1; argv[i]; ++i) {
-			auto n = std::atoi(argv[i]);
-			max.Push(n);
+		for (const auto& e : elements) {
+			max.Push(e);
 		}
 
 		std::cout << "Max heap ";
@@ -82,15 +104,24 @@ int main(int argc, char* argv[]) {
 
 	{
 		MinHeap<int> min;
-		for (int i = 1; argv[i]; ++i) {
-			auto n = std::atoi(argv[i]);
-			min.Push(n);
+		for (const auto& e : elements) {
+			min.Push(e);
 		}
 
 		std::cout << "Min heap ";
 		while (not min.IsEmpty()) {
 			std::cout << min.Top() << ' ';
 			min.Pop();
+		}
+		std::cout << '\n';
+	}
+
+	{
+		MaxHeap<int> max(elements.begin(), elements.end());
+		std::cout << "Max heap ";
+		while (not max.IsEmpty()) {
+			std::cout << max.Top() << ' ';
+			max.Pop();
 		}
 		std::cout << '\n';
 	}
