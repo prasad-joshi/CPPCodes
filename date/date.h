@@ -69,6 +69,7 @@ public:
 	};
 
 	static constexpr uint16_t kDaysInYear = Accumulate(kDaysInMonth);
+	static_assert(kDaysInYear == 365);
 };
 
 #endif
