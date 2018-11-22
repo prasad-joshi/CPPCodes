@@ -82,6 +82,17 @@ bool Date::operator < (const Date& rhs) const {
 	return false;
 }
 
+bool Date::operator > (const Date& rhs) const {
+	if (year_ > rhs.year_) {
+		return true;
+	} else if (month_ > rhs.month_) {
+		return true;
+	} else if (day_ > rhs.day_) {
+		return true;
+	}
+	return false;
+}
+
 bool Date::operator == (const Date& rhs) const {
 	if (year_ == rhs.year_ && month_ == rhs.month_ && day_ == rhs.day_) {
 		return true;
@@ -90,23 +101,23 @@ bool Date::operator == (const Date& rhs) const {
 }
 
 int32_t Date::operator - (const Date& rhs) const {
-	Date cur(*this);
-	if (cur == rhs) {
+	if (*this == rhs) {
 		return 0;
-	} else if (year_ == rhs.year_) {
-		return rhs.ElapsedDays() - this->ElapsedDays();
 	}
 
-	auto neg = cur < rhs;
-	if (not neg) {
-		return -(rhs - cur);
+	if (year_ == rhs.year_) {
+		return ElapsedDays() - rhs.ElapsedDays();
 	}
 
-	int32_t difference = 0;
+	if (*this > rhs) {
+		return -(rhs - *this);
+	}
+
+	int32_t d = 0;
 	for (auto y = year_+1; y < rhs.year_; ++y) {
-		difference += DaysInYear(y);
+		d += DaysInYear(y);
 	}
-	return difference + this->RemainingDays() + rhs.ElapsedDays();
+	return -(d + RemainingDays() + rhs.ElapsedDays());
 }
 
 int main() {
@@ -126,6 +137,12 @@ int main() {
 
 	std::cout << "kDaysInYear " << Date::kDaysInYear << std::endl;
 	std::cout << "d4.RemainingDays " << d4.RemainingDays() << std::endl;
+	std::cout << "d4.ElapsedDays " << d4.ElapsedDays() << std::endl;
+	std::cout << "d5.RemainingDays " << d5.RemainingDays() << std::endl;
 	std::cout << "d5.ElapsedDays " << d5.ElapsedDays() << std::endl;
+
+	Date d6(2020, Date::Month::MARCH, 1);
+	std::cout << "d4 - d6 " << d4 - d6 << std::endl;
+	std::cout << "d6 - d4 " << d6 - d4 << std::endl;
 	return 0;
 }

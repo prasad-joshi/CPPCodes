@@ -37,6 +37,7 @@ public:
 	Date(const Date& date);
 	int32_t operator - (const Date& date) const;
 	bool operator < (const Date& date) const;
+	bool operator > (const Date& date) const;
 	bool operator == (const Date& rhs) const;
 public:
 	bool IsValid() const;
