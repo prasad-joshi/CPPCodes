@@ -83,34 +83,44 @@ public:
 
 	int32_t Expr() {
 		current_.token_ = NextToken();
+		assert(current_.token_.GetTokenType() == TokenType::kInteger);
+		int32_t result = std::stoi(current_.token_.Value());
+		Eat(current_.token_.GetTokenType());
 
-		auto left = current_.token_;
-		assert(left.GetTokenType() == TokenType::kInteger);
-		Eat(left.GetTokenType());
+		while (current_.token_.GetTokenType() != TokenType::kEof) {
+			auto op = current_.token_;
+			Eat(op.GetTokenType());
 
-		auto op = current_.token_;
-		Eat(op.GetTokenType());
+			auto right = current_.token_;
+			assert(right.GetTokenType() == TokenType::kInteger);
+			Eat(right.GetTokenType());
+			auto v = std::stoi(right.Value());
 
-		auto right = current_.token_;
-		assert(right.GetTokenType() == TokenType::kInteger);
-
-		switch (op.GetTokenType()) {
-		default:
-			assert(0);
-			return -EINVAL;
-		case TokenType::kPlus:
-			return std::stoi(left.Value()) + std::stoi(right.Value());
-		case TokenType::kMinus:
-			return std::stoi(left.Value()) - std::stoi(right.Value());
-		case TokenType::kMultiply:
-			return std::stoi(left.Value()) * std::stoi(right.Value());
-		case TokenType::kDivide:
-			return std::stoi(left.Value()) / std::stoi(right.Value());
-		case TokenType::kMod:
-			return std::stoi(left.Value()) % std::stoi(right.Value());
-		case TokenType::kPower:
-			return std::pow(std::stoi(left.Value()), std::stoi(right.Value()));
+			switch (op.GetTokenType()) {
+			default:
+				assert(0);
+				return -EINVAL;
+			case TokenType::kPlus:
+				result += v;
+				break;
+			case TokenType::kMinus:
+				result -= v;
+				break;
+			case TokenType::kMultiply:
+				result *= v;
+				break;
+			case TokenType::kDivide:
+				result /= v;
+				break;
+			case TokenType::kMod:
+				result %= v;
+				break;
+			case TokenType::kPower:
+				result = std::pow(result, v);
+				break;
+			}
 		}
+		return result;
 	}
 
 private:
