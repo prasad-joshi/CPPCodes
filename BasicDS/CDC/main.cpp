@@ -143,24 +143,10 @@ struct Range {
 
 class Histogram {
 public:
-	Histogram() {
-		vec_ = {
-			{{1, 1}, 0},
-			{{2, 2}, 0},
-			{{3, 3}, 0},
-			{{4, 4}, 0},
-			{{5, 5}, 0},
-			{{6, 6}, 0},
-			{{7, 7}, 0},
-			{{8, 8}, 0},
-			{{9, 9}, 0},
-			{{10, 100}, 0},
-			{{101, 1000}, 0},
-			{{1001, 10000}, 0},
-			{{10001, 100000}, 0},
-			{{100001, 1000000}, 0},
-			{{1000001, 10000000}, 0},
-		};
+	Histogram(std::vector<Range> ranges) {
+		for (const auto& range : ranges) {
+			vec_.emplace_back(range, 0);
+		}
 	}
 
 	void IncrementRange(uint32_t v) {
@@ -231,8 +217,43 @@ public:
 		}
 	}
 
+	Histogram RefCountHistogram() const {
+		return Histogram{std::vector<Range>{
+			{1, 1},
+			{2, 2},
+			{3, 3},
+			{4, 4},
+			{5, 5},
+			{6, 6},
+			{7, 7},
+			{8, 8},
+			{9, 9},
+			{10, 100},
+			{101, 1000},
+			{1001, 10000},
+			{10001, 100000},
+			{100001, 1000000},
+			{1000001, 10000000},
+		}};
+	}
+
+	Histogram SizeHistogram() const {
+		return std::vector<Range>{
+			{0, 4095},
+			{4096, 8191},
+			{8192, 12287},
+			{12288, 16383},
+			{16384, 20479},
+			{20480, 24575},
+			{24576, 28671},
+			{28672, 32767},
+			{32768, 36863},
+		};
+	}
+
 	void DumpStats() const noexcept {
-		Histogram h;
+		auto hist_ref = RefCountHistogram();
+		auto hist_size = SizeHistogram();
 		uint32_t min = std::numeric_limits<uint32_t>::max();
 		uint32_t max = std::numeric_limits<uint32_t>::min();
 		uint32_t non_one = 0;
@@ -247,7 +268,8 @@ public:
 			} else {
 				only_one++;
 			}
-			h.IncrementRange(ref);
+			hist_ref.IncrementRange(ref);
+			hist_size.IncrementRange(it.second.Size());
 
 			size_t s = it.second.Size();
 			data_size += s * ref;
@@ -266,7 +288,8 @@ public:
 			<< "Processed Size (MB) = " << data_size / 1024 / 1024 << '\n'
 			<< "Size after dedup (MB) = " << data_size_after_dedup / 1024 / 1024 << '\n'
 			<< "Dedup % = " << 100 - (100 * data_size_after_dedup / data_size) << '\n'
-			<< "Hash reference Histogram\n" << h << '\n'
+			<< "Hash reference Histogram\n" << hist_ref << '\n'
+			<< "Chunk size Histogram\n" << hist_size << '\n'
 			<< "==============="
 			<< std::endl;
 	}
@@ -288,7 +311,7 @@ void CreateDedupHashes(
 	dedup::BSW bsw(std::move(hasher));
 	bsw.SetMinChunkSize(4 * 1024);
 	bsw.SetRecommendedChunkSize(16 * 1024);
-	bsw.SetMaxChunkSize(32 * 1024 *1024);
+	bsw.SetMaxChunkSize(32 * 1024);
 
 	dedup::Chunker chunker(std::move(bsw));
 
@@ -309,8 +332,8 @@ void CreateDedupHashes(
 			}
 			it = stopped;
 		}
-		std::cout << "**** " << path << " Iteration " << i << std::endl;
 		if (dump_stats and i % 5 == 0) {
+			std::cout << "**** " << path << " Iteration " << i << std::endl;
 			table->DumpStats();
 		}
 		++i;
