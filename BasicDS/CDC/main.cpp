@@ -3,6 +3,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <cstdlib>
 
 #include <cryptopp/sha.h>
 #include <cryptopp/filters.h>
@@ -17,9 +18,11 @@
 
 #include <iostream>
 
-#include "BSW.h"
 #include "RollingHash.h"
 #include "EncodeDecode.h"
+#include "Chunker.h"
+#include "BSW.h"
+#include "tttd.h"
 
 class File {
 public:
@@ -29,7 +32,7 @@ public:
 	};
 
 	File(std::string path, SeekType seek = SeekType::kCanSeek) : path_(path) {
-		fd_ = open(path.c_str(), O_RDONLY);
+		fd_ = open(path.c_str(), O_RDONLY | O_DIRECT);
 		assert(fd_ >= 0);
 		switch (seek) {
 		case SeekType::kCanSeek:
@@ -114,13 +117,11 @@ std::string CryptoHash(const unsigned char* buf, const size_t size) {
 	return output;
 }
 
-template <typename ForwardIt>
-std::string NewChunkReady(std::vector<uint8_t>& vec, ForwardIt start, ForwardIt end) {
-	const unsigned char* buf = vec.data();
-	size_t begin = std::distance(vec.begin(), start);
-	size_t size = std::distance(start, end);
+std::string NewChunkReady(const unsigned char* begin, const unsigned char* end) {
+	const unsigned char* buf = begin;
+	size_t size = end - begin;
 
-	std::string hash = CryptoHash(buf + begin, size);
+	std::string hash = CryptoHash(buf, size);
 
 #if 0
 	std::cout << "Chunk Ready"
@@ -239,6 +240,7 @@ public:
 
 	Histogram SizeHistogram() const {
 		return std::vector<Range>{
+#if 0
 			{0, 4095},
 			{4096, 8191},
 			{8192, 12287},
@@ -248,6 +250,17 @@ public:
 			{24576, 28671},
 			{28672, 32767},
 			{32768, 36863},
+#else
+			{0, 524287},
+			{524288, 1048576},
+			{1048577, 1572864},
+			{1572865, 2097152},
+			{2097153, 2621440},
+			{2621441, 3145728},
+			{3145729, 3670016},
+			{3670017, 4194304},
+			{4194305, 4718593},
+#endif
 		};
 	}
 
@@ -308,26 +321,31 @@ void CreateDedupHashes(
 		) {
 	RollingHash::KarpRabinHash hasher{64};
 
-	dedup::BSW bsw(std::move(hasher));
-	bsw.SetMinChunkSize(4 * 1024);
-	bsw.SetRecommendedChunkSize(16 * 1024);
-	bsw.SetMaxChunkSize(32 * 1024);
+	dedup::TTTD algo(std::move(hasher));
+	algo.SetMinChunkSize(512 * 1024);
+	algo.SetRecommendedChunkSize(1024 * 1024);
+	algo.SetMaxChunkSize(4 * 1024 * 1024);
 
-	dedup::Chunker chunker(std::move(bsw));
+	dedup::Chunker chunker(std::move(algo));
 
-	std::vector<uint8_t> data(100 * 1024 * 1024, 0);
+	const size_t kReadSize = 100 * 1024 * 1024;
+	unsigned char* data;
+	posix_memalign(reinterpret_cast<void**>(&data), 4096, kReadSize);
+	if (data == nullptr) {
+		return;
+	}
 	File file(path, seek);
 
 	uint64_t i = 0;
 	uint64_t offset = read_begin;
 	while (offset < read_end and
-			file.Read((char*)data.data(), data.size(), offset)) {
-		auto end = data.end();
+			file.Read((char*)data, kReadSize, offset)) {
+		auto end = data + kReadSize;
 
-		for (auto it = data.begin(); it != end; ) {
+		for (auto it = data; it != end; ) {
 			auto [stopped, ready] = chunker.Chunkify(it, end);
 			if (ready || stopped == end) {
-				auto hash = NewChunkReady(data, it, stopped);
+				auto hash = NewChunkReady(it, stopped);
 				table->HashRefer(hash, std::distance(it, stopped));
 			}
 			it = stopped;
@@ -337,13 +355,14 @@ void CreateDedupHashes(
 			table->DumpStats();
 		}
 		++i;
-		offset += data.size();
+		offset += kReadSize;
 	}
+	free(data);
 	std::cout << "DONE"<< std::endl;
 }
 
 int main() {
-	const size_t kThreads = 12;
+	const size_t kThreads = 4;
 	DedupTable table_sda;
 	File sda("/dev/sda", File::SeekType::kCanSeek);
 	size_t x = sda.Size() / kThreads;
