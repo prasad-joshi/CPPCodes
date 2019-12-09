@@ -19,7 +19,6 @@
 #include <iostream>
 
 #include "RollingHash.h"
-#include "EncodeDecode.h"
 #include "Chunker.h"
 #include "BSW.h"
 #include "tttd.h"
